@@ -1,8 +1,11 @@
-
-
--> offline mode for mobile app.
-    -> gilgitapp
-
--- 
-
-library
+- [x]  Setup library
+- [x]  Setup basic infrastructure
+- [x]  Support custom HTTP Client
+- [x]  Support custom storages
+- [x]  Support built-in custom storage for web
+- [ ]  Network monitoring interface
+- [ ]  Register custom network monitoring interfaces
+- [ ]  Support built-in custom storage for RN
+- [ ]  Queue management system
+- [ ]  Queue processing management system with several algorithms supported
+- [ ]  Reactivity System
