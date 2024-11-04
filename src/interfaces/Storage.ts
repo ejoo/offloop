@@ -9,6 +9,7 @@ export interface Storage {
     storeName: string,
     contentHash: string
   ): Promise<unknown | null>;
+  deleteAll?(storeName: string): Promise<void>;
 }
 
 export interface StorageData {

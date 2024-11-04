@@ -142,4 +142,18 @@ export class IndexDbStorage implements Storage {
       request.onerror = () => reject(request.error);
     });
   }
+
+  public async deleteAll(storeName: string): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    if (!this.db.objectStoreNames.contains(storeName)) {
+      throw new Error(`Store "${storeName}" does not exist`);
+    }
+
+    const transaction = this.db.transaction([storeName], 'readwrite');
+    const store = transaction.objectStore(storeName);
+    await store.clear();
+  }
 }

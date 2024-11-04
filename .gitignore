@@ -4,7 +4,7 @@ node_modules/
 # Build
 dist/
 coverage/
-test-environment/
+
 # IDE
 .idea/
 .vscode/
