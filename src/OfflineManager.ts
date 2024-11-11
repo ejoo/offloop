@@ -126,7 +126,6 @@ export class OfflineManager {
       contentHash,
     };
 
-    await this.saveToLocalDB(entity, data);
     await this.queueManager.addToQueue(operation);
   }
 

@@ -116,6 +116,10 @@ export class SyncQueueManager extends QueueManager {
         response = await this.httpClient.delete(`${endpoint}/${item.id}`);
         break;
 
+      case 'GET':
+        response = await this.httpClient.get(endpoint);
+        break;
+
       default:
         throw new Error(`Unknown operation: ${item.operation}`);
     }

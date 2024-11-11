@@ -1,6 +1,6 @@
 {
   "name": "@uconnect/offloop",
-  "version": "1.0.0",
+  "version": "0.1.1",
   "description": "Cross-platform offline storage library for Web and React Native",
   "main": "./dist/index.umd.js",
   "module": "./dist/index.es.js",

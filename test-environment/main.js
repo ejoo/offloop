@@ -3,30 +3,6 @@ import { OfflineManager } from '../dist/index.es.js';
 
 
 
-class FetchHttpClient {
-  post(url, data) {
-    return fetch(url, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  put(url, data) {
-    return fetch(url, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  delete(url) {
-    return axios.delete(url);
-  }
-
-  get(url) {
-    return fetch(url);
-  }
-}
-
 class TestEnvironment {
   constructor() {
     this.offlineManager = new OfflineManager({
