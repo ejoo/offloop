@@ -2,21 +2,43 @@ import { OfflineManager } from '../dist/index.es.js';
 
 
 
+// async function isReallyOnline(url = 'https://jsonplaceholder.typicode.com/todos/1') {
+//   try {
+//     const response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+//     return response.ok;
+//   } catch (error) {
+//     return false;
+//   }
+// }
 
 class TestEnvironment {
   constructor() {
     this.offlineManager = new OfflineManager({
-      baseURL: 'https://jsonplaceholder.typicode.com',
+      apiBaseUrl: 'https://jsonplaceholder.typicode.com',
       onlineChecker: {
-        check: () => false,
-        delay: 1000,
+        check: async () => {
+          const isNavigatorOnline = navigator.onLine;
+          if (!isNavigatorOnline) {
+            this.isOnline = false
+            return false; // Directly offline if browser says offline
+          }
+      
+          // Confirm by pinging an external source
+          const isReallyOnlineStatus = await isReallyOnline();
+          this.isOnline = isReallyOnlineStatus
+          this.updateConnectionStatus()
+          return isReallyOnlineStatus;
+        },
+        timeout: 5000,
       },
+      
     //   httpClient: new FetchHttpClient(),
     });
 
-    this.isOnline = true;
+    
     this.setupEventListeners();
     this.updateConnectionStatus();
+    this.isOnline = true;
   }
 
   setupEventListeners() {
