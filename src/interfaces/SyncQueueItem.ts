@@ -14,4 +14,5 @@ export interface SyncQueueItem {
   timestamp: number;
   retryCount: number;
   contentHash?: string;
+  baseUrl?: string;
 }

@@ -5,6 +5,7 @@
 import { Storage } from '../interfaces/Storage';
 import { SyncQueueItem } from '../interfaces/SyncQueueItem';
 import { HttpClient, HttpResponse } from '../interfaces/HttpClient';
+import { EventManager, EventTypes } from '../EventManager';
 
 export abstract class QueueManager {
   abstract addToQueue(item: SyncQueueItem): Promise<void>;
@@ -19,6 +20,7 @@ export class SyncQueueManager extends QueueManager {
   private httpClient: HttpClient;
   private maxRetries: number;
   private processingQueue: boolean = false;
+  private eventManager = new EventManager();
 
   constructor(
     storage: Storage,
@@ -31,6 +33,8 @@ export class SyncQueueManager extends QueueManager {
     this.apiBaseUrl = apiBaseUrl;
     this.httpClient = httpClient;
     this.maxRetries = maxRetries;
+    this.eventManager.on(EventTypes.DATA_SYNC, this.processQueue.bind(this));
+
   }
 
   async addToQueue(item: SyncQueueItem): Promise<void> {
@@ -43,6 +47,7 @@ export class SyncQueueManager extends QueueManager {
     }
 
     await this.storage.save('syncQueue', item);
+    this.eventManager.emit(EventTypes.ON_ADD_TO_QUEUE);
   }
 
   private async checkDuplicate(contentHash: string): Promise<boolean> {
@@ -60,12 +65,13 @@ export class SyncQueueManager extends QueueManager {
 
   async processQueue(): Promise<void> {
     if (this.processingQueue) return;
-
+  
     this.processingQueue = true;
+  
     try {
       const queue = await this.getQueue();
-
-      for (const item of queue) {
+  
+      const promises = queue.map(async (item) => {
         try {
           await this.syncItem(item as SyncQueueItem);
           await this.deleteFromQueue(item);
@@ -81,11 +87,15 @@ export class SyncQueueManager extends QueueManager {
             });
           }
         }
-      }
+      });
+  
+      // Execute all promises and wait until all of them complete
+      await Promise.allSettled(promises);
     } finally {
       this.processingQueue = false;
     }
   }
+  
 
   async getQueue(): Promise<SyncQueueItem[]> {
     return this.storage.getAll<SyncQueueItem>('syncQueue');
@@ -93,6 +103,7 @@ export class SyncQueueManager extends QueueManager {
 
   async deleteFromQueue(item: SyncQueueItem): Promise<void> {
     await this.storage.delete('syncQueue', item.id);
+    this.eventManager.emit(EventTypes.ON_DELETE_FROM_QUEUE);
   }
 
   private async syncItem(item: SyncQueueItem): Promise<void> {

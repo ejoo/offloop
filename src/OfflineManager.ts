@@ -5,8 +5,10 @@ import { DefaultHttpClient } from './clients/DefaultHttpClient';
 import { Storage } from './interfaces/Storage';
 import { IndexDbStorage } from './storages/IndexDbStorage';
 import { OnlineCheckerConfig } from './interfaces/OnlineCheckerConfig';
-import { DefaultNetworkMonitor } from './networks/DefaultNetworkMonitor';
 import { SyncQueueManager } from './queue';
+import { EventManager, EventTypes } from './EventManager';
+import { DefaultNetworkMonitor } from './networks';
+
 
 export class OfflineManager {
   private readonly dbName: string;
@@ -17,6 +19,8 @@ export class OfflineManager {
   private readonly queueManager: SyncQueueManager;
   private onlineChecker: OnlineCheckerConfig;
   private networkMonitor: NetworkMonitor;
+  private eventEmitter = new EventManager();
+
 
   constructor(config: OfflineManagerConfig) {
     this.dbName = config.dbName || 'offlineDB';
@@ -57,24 +61,22 @@ export class OfflineManager {
     this._isOnline = value;
   }
 
-  public async init(): Promise<void> {
-    // window.addEventListener('online', async () => {
-    //   this._isOnline = true;
-    //   await this.queueManager.processQueue();
-    // });
-    // window.addEventListener('offline', () => {
-    //   this._isOnline = false;
-    // });
+  public async init(): Promise<void> {    
 
     this.networkMonitor.onStatusChange((isOnline) => {
       this._isOnline = isOnline;
       if (isOnline) {
-        this.queueManager.processQueue();
+        this.eventEmitter.emit(EventTypes.DATA_SYNC);
       }
     });
 
+    this.eventEmitter.on(EventTypes.DATA_SYNC, async () => {
+      await this.queueManager.processQueue();
+    });
+  
     await this.initializeDB();
-
+  
+    // Process the queue if we start in an online state
     if (this._isOnline) {
       await this.queueManager.processQueue();
     }
@@ -161,12 +163,12 @@ export class OfflineManager {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async saveToLocalDB(entity: string, data: any): Promise<void> {
-    if (!data.id) {
-      data.id = crypto.randomUUID();
-    }
-    await this.storage.save('entities', { ...data, entity });
-  }
+  // private async saveToLocalDB(entity: string, data: any): Promise<void> {
+  //   if (!data.id) {
+  //     data.id = crypto.randomUUID();
+  //   }
+  //   await this.storage.save('entities', { ...data, entity });
+  // }
 
   private async getFromLocalDB<T>(
     entity: string,
