@@ -17,17 +17,7 @@ class TestEnvironment {
       apiBaseUrl: 'https://jsonplaceholder.typicode.com',
       onlineChecker: {
         check: async () => {
-          const isNavigatorOnline = navigator.onLine;
-          if (!isNavigatorOnline) {
-            this.isOnline = false
-            return false; // Directly offline if browser says offline
-          }
-      
-          // Confirm by pinging an external source
-          const isReallyOnlineStatus = await isReallyOnline();
-          this.isOnline = isReallyOnlineStatus
-          this.updateConnectionStatus()
-          return isReallyOnlineStatus;
+          return true
         },
         timeout: 5000,
       },
