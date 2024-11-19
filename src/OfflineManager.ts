@@ -73,6 +73,14 @@ export class OfflineManager {
     this.eventEmitter.on(EventTypes.DATA_SYNC, async () => {
       await this.queueManager.processQueue();
     });
+
+    this.eventEmitter.on(EventTypes.ONLINE, async () => {
+      this._isOnline = true
+    });
+
+    this.eventEmitter.on(EventTypes.OFFLINE, async () => {
+      this._isOnline = false
+    });
   
     await this.initializeDB();
   
@@ -160,6 +168,13 @@ export class OfflineManager {
 
   public async getEntity<T>(entity: string, id: string): Promise<T | null> {
     return this.getFromLocalDB<T>(entity, id);
+  }
+
+  public triggerDataSync(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      this.eventEmitter.emit('DATA_SYNC');
+      resolve();
+    });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

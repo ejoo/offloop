@@ -47,7 +47,7 @@ export class SyncQueueManager extends QueueManager {
     }
 
     await this.storage.save('syncQueue', item);
-    this.eventManager.emit(EventTypes.ON_ADD_TO_QUEUE);
+    // this.eventManager.emit(EventTypes.ON_ADD_TO_QUEUE);
   }
 
   private async checkDuplicate(contentHash: string): Promise<boolean> {
