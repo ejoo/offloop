@@ -56,7 +56,10 @@ export class ReactNativeNetworkMonitor implements NetworkMonitor {
   private setStatus(status: boolean) {
     if (this.online !== status) {
       this.online = status;
-      this.callbacks.forEach((callback) => callback(status));
+  
+      if (this.online === true) {
+        this.callbacks.forEach((callback) => callback(status));
+      }
     }
   }
 
