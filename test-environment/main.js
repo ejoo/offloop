@@ -46,6 +46,9 @@ class TestEnvironment {
       .getElementById('sendRequest')
       .addEventListener('click', () => this.sendTestRequest());
     document
+      .getElementById('getRequest')
+      .addEventListener('click', () => this.getTestRequest());
+    document
       .getElementById('toggleConnection')
       .addEventListener('click', () => this.toggleConnection());
     document
@@ -73,10 +76,21 @@ class TestEnvironment {
     try {
       this.log('Sending test request...');
       // debugger;
-      const response = await this.offlineManager.saveEntity('posts', {
+      const response = await this.offlineManager.postEntity('posts', {
         title: 'Test Post',
         body: 'This is a test post',
       });
+      this.log(`Response received: ${JSON.stringify(response)}`);
+    } catch (error) {
+      this.log(`Error: ${error.message}`);
+    }
+  }
+
+  async getTestRequest() {
+    try {
+      this.log('getting test request...');
+      const response = await this.offlineManager.getEntity('todos');
+      console.log({response})
       this.log(`Response received: ${JSON.stringify(response)}`);
     } catch (error) {
       this.log(`Error: ${error.message}`);

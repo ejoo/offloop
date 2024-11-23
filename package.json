@@ -46,8 +46,13 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "dependencies": {
     "@react-native-community/netinfo": "^11.4.1",
+    "@uconnect/offloop": "file:uconnect-offloop-0.1.1.tgz",
     "@vitest/coverage-c8": "^0.33.0",
     "bare-events": "^2.5.0",
     "build": "^0.1.4",

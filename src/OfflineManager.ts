@@ -9,7 +9,6 @@ import { SyncQueueManager } from './queue';
 import { EventManager, EventTypes } from './EventManager';
 import { DefaultNetworkMonitor } from './networks';
 
-
 export class OfflineManager {
   private readonly dbName: string;
   private readonly apiBaseUrl: string;
@@ -20,17 +19,21 @@ export class OfflineManager {
   private onlineChecker: OnlineCheckerConfig;
   private networkMonitor: NetworkMonitor;
   private eventEmitter = new EventManager();
-
+  private criticalEntities: string[] = [];
 
   constructor(config: OfflineManagerConfig) {
+    if (!config.apiBaseUrl) {
+      throw new Error('API base URL is required');
+    }
+
     this.dbName = config.dbName || 'offlineDB';
     this.apiBaseUrl = config.apiBaseUrl;
     this.httpClient = config.httpClient || new DefaultHttpClient();
     this.storage = config.storage || new IndexDbStorage(this.dbName);
     this.networkMonitor = config.networkMonitor || new DefaultNetworkMonitor();
-    if (!config.onlineChecker) {
-      throw new Error('Online checker config is required');
-    }
+    this.onlineChecker = config.onlineChecker || { check: () => true };
+
+    this._isOnline = this.onlineChecker.check();
 
     this.queueManager = new SyncQueueManager(
       this.storage,
@@ -39,9 +42,6 @@ export class OfflineManager {
       config.maxRetries || 3
     );
 
-    this.networkMonitor = config.networkMonitor || new DefaultNetworkMonitor();
-    this.onlineChecker = config.onlineChecker;
-    this._isOnline = this.onlineChecker.check();
     this.init();
   }
 
@@ -53,16 +53,15 @@ export class OfflineManager {
     return this._isOnline;
   }
 
-  get queue(): Promise<SyncQueueItem[]> {
-    return this.queueManager.getQueue();
-  }
-
   set isOnline(value: boolean) {
     this._isOnline = value;
   }
 
-  public async init(): Promise<void> {    
+  get queue(): Promise<SyncQueueItem[]> {
+    return this.queueManager.getQueue();
+  }
 
+  private async init(): Promise<void> {
     this.networkMonitor.onStatusChange((isOnline) => {
       this._isOnline = isOnline;
       if (isOnline) {
@@ -72,11 +71,14 @@ export class OfflineManager {
 
     this.eventEmitter.on(EventTypes.DATA_SYNC, async () => {
       await this.queueManager.processQueue();
+      await this.syncCriticalData();
     });
-  
+
+    this.eventEmitter.on(EventTypes.ONLINE, () => (this._isOnline = true));
+    this.eventEmitter.on(EventTypes.OFFLINE, () => (this._isOnline = false));
+
     await this.initializeDB();
-  
-    // Process the queue if we start in an online state
+
     if (this._isOnline) {
       await this.queueManager.processQueue();
     }
@@ -86,27 +88,183 @@ export class OfflineManager {
     await this.storage.init();
   }
 
-  public async saveEntity<T>(entity: string, data: T, id?: string): Promise<T> {
+  public registerCriticalEntities(entities: string[]): void {
+    this.criticalEntities = entities;
+  }
+
+  private async syncCriticalData(): Promise<void> {
+    for (const entity of this.criticalEntities) {
+      try {
+        const response = await this.httpClient.get(
+          `${this.apiBaseUrl}/${entity}`
+        );
+        if (response.ok && response.data) {
+          if (Array.isArray(response.data)) {
+            await this.cacheOperation(entity, response.data);
+          }
+        }
+      } catch (error) {
+        console.error(`Error syncing critical entity ${entity}:`, error);
+      }
+    }
+  }
+
+  public async getEntity<T extends { id: string | number }>(
+    entity: string,
+    page: number | string,
+    pageSize: number,
+    id?: string
+  ): Promise<T | unknown | null> {
     if (this._isOnline) {
       try {
-        const endpoint = `${this.apiBaseUrl}/${entity}`;
-        const response = id
-          ? await this.httpClient.put<T>(`${endpoint}/${id}`, data)
-          : await this.httpClient.post<T>(endpoint, data);
+        const url = id
+          ? `${this.apiBaseUrl}/${entity}/${id}`
+          : `${this.apiBaseUrl}/${entity}?page=${page ?? 1}&pageSize=${
+              pageSize ?? 10
+            }`;
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        const response = await this.httpClient.get<T>(url);
+
+        if (response.ok) {
+          if (!id) {
+            if (Array.isArray(response.data)) {
+              await this.cacheOperation(entity, response.data);
+            }
+          }
+          return {
+            data: response.data,
+            operation: 'GET',
+            entity,
+            timestamp: Date.now(),
+          };
+        } else {
+          throw new Error(`Failed to fetch ${entity} with ID ${id}`);
         }
-
-        return response.data as T;
       } catch (error) {
+        console.error(`Error fetching ${entity} from server:`, error);
+        return null;
+      }
+    } else {
+      const cachedData = await this.getCachedFromLocalDB<T>(
+        entity,
+        id as string
+      );
+      if (cachedData) {
+        console.log('Returning data from cache:', cachedData);
+        return ({
+          data: cachedData,
+          operation:
+            cachedData &&
+            typeof cachedData === 'object' &&
+            'operation' in cachedData
+              ? cachedData.operation
+              : 'GET',
+          entity: (cachedData as { entity: string }).entity || entity,
+          timestamp:
+            cachedData &&
+            typeof cachedData === 'object' &&
+            'timestamp' in cachedData
+              ? cachedData.timestamp
+              : Date.now(),
+        } as unknown) as T;
+      }
+    }
+    return null;
+  }
+
+  public async postEntity<T>(entity: string, data: T): Promise<T> {
+    if (this._isOnline) {
+      const endpoint = `${this.apiBaseUrl}/${entity}`;
+      try {
+        const response = await this.httpClient.post(endpoint, data);
+        if (response.ok) {
+          return response.data as T;
+        } else {
+          throw new Error('Error posting data');
+        }
+      } catch (error) {
+        console.error(`Error posting ${entity}:`, error);
+        await this.queueOperation(entity, data);
+        return data;
+      }
+    } else {
+      await this.queueOperation(entity, data);
+      return data;
+    }
+  }
+
+  public async putEntity<T>(entity: string, id: string, data: T): Promise<T> {
+    if (this._isOnline) {
+      const endpoint = `${this.apiBaseUrl}/${entity}/${id}`;
+      try {
+        const response = await this.httpClient.put(endpoint, data);
+        if (response.ok) {
+          return response.data as T;
+        } else {
+          throw new Error('Error updating data');
+        }
+      } catch (error) {
+        console.error(`Error updating ${entity}:`, error);
         await this.queueOperation(entity, data, id);
         return data;
       }
+    } else {
+      await this.queueOperation(entity, data, id);
+      return data;
     }
+  }
 
-    await this.queueOperation(entity, data, id);
-    return data;
+  public async deleteEntity(entity: string, id: string): Promise<void> {
+    if (this._isOnline) {
+      const endpoint = `${this.apiBaseUrl}/${entity}/${id}`;
+      try {
+        const response = await this.httpClient.delete(endpoint);
+        if (response.ok) {
+          await this.deleteFromLocalDB(entity, id);
+        } else {
+          throw new Error('Error deleting data');
+        }
+      } catch (error) {
+        console.error(`Error deleting ${entity}:`, error);
+        await this.queueOperation(entity, { id }, 'DELETE');
+      }
+    } else {
+      await this.queueOperation(entity, { id }, 'DELETE');
+    }
+  }
+
+  private async cacheOperation(entity: string, data: unknown[]): Promise<void> {
+    try {
+      if (this.storage.saveUnique) {
+        const cachedData = await this.getCachedFromLocalDB<{
+          id: string | number;
+          data: unknown[];
+        }>(entity);
+        const existingData = (cachedData as { data: unknown[] })?.data || [];
+
+        const mergedData = [
+          ...existingData,
+          ...data.filter(
+            (item) =>
+              !existingData.some(
+                (existingItem) =>
+                  (existingItem as { id: string | number }).id ===
+                  (item as { id: string | number }).id
+              )
+          ),
+        ];
+
+        await this.storage.saveUnique('entities', {
+          id: entity,
+          entity,
+          data: mergedData,
+          timestamp: Date.now(),
+          operation: 'GET',
+        });
+      }
+    } catch (error) {
+      console.error('Error saving unique entity:', error);
+    }
   }
 
   private async queueOperation(
@@ -139,43 +297,35 @@ export class OfflineManager {
     return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
-  public async deleteEntity(entity: string, id: string): Promise<void> {
-    const operation: SyncQueueItem = {
-      id,
-      entity,
-      operation: 'DELETE',
-      data: { id },
-      timestamp: Date.now(),
-      retryCount: 0,
-    };
-
-    await this.deleteFromLocalDB(entity, id);
-
-    await this.queueManager.addToQueue(operation);
-
-    if (this.isOnline) {
-      await this.queueManager.processQueue();
-    }
+  public triggerDataSync(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      this.eventEmitter.emit(EventTypes.DATA_SYNC);
+      resolve();
+    });
   }
 
-  public async getEntity<T>(entity: string, id: string): Promise<T | null> {
-    return this.getFromLocalDB<T>(entity, id);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  // private async saveToLocalDB(entity: string, data: any): Promise<void> {
-  //   if (!data.id) {
-  //     data.id = crypto.randomUUID();
-  //   }
-  //   await this.storage.save('entities', { ...data, entity });
+  // private async getFromLocalDB<T>(
+  //   entity: string,
+  //   id: string
+  // ): Promise<T | null> {
+  //   const data = await this.storage.get<T & { entity: string }>('entities', id);
+  //   return data && data.entity === entity ? data : null;
   // }
 
-  private async getFromLocalDB<T>(
+  private async getCachedFromLocalDB<T extends { id: string | number }>(
     entity: string,
-    id: string
-  ): Promise<T | null> {
-    const data = await this.storage.get<T & { entity: string }>('entities', id);
-    return data && data.entity === entity ? data : null;
+    id?: string | number
+  ): Promise<T | unknown | null> {
+    const data = await this.storage.getAll<T & { entity: string }>('entities');
+    const findItem = data.find((item) => item.entity === entity);
+    if (id) {
+      return findItem
+        ? ((findItem as unknown) as { data: T[] }).data.find(
+            (d: T) => d.id === id
+          )
+        : null;
+    }
+    return findItem ? ((findItem as unknown) as { data: T[] }) : null;
   }
 
   private async deleteFromLocalDB(entity: string, id: string): Promise<void> {

@@ -32,7 +32,9 @@ export class IndexDbStorage implements Storage {
 
         // Create a generic store for entities
         if (!db.objectStoreNames.contains('entities')) {
-          db.createObjectStore('entities', { keyPath: 'id' });
+          const entityStore = db.createObjectStore('entities', { keyPath: 'id' });
+
+          entityStore.createIndex('entity', 'entity', { unique: true });
         }
       };
     });
@@ -70,6 +72,71 @@ export class IndexDbStorage implements Storage {
       request.onerror = () => reject(request.error);
     });
   }
+
+  public async saveUnique(storeName: string, data: unknown): Promise<void> {
+    console.log('saveUnique');
+    return new Promise(async (resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database not initialized'));
+        return;
+      }
+  
+      if (!this.db.objectStoreNames.contains(storeName)) {
+        reject(new Error(`Store "${storeName}" does not exist`));
+        return;
+      }
+  
+      if (typeof data !== 'object' || data === null) {
+        reject(new Error('Data must be an object'));
+        return;
+      }
+  
+      const dataWithId = data as Record<string, unknown>;
+      if (!('entity' in dataWithId)) {
+        reject(new Error('Data must contain an "entity" property'));
+        return;
+      }
+  
+      const transaction = this.db.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
+  
+      try {
+        const index = store.index('entity'); // Ensure an index on the `entity` field exists
+        const entity = dataWithId.entity as string;
+        const range = IDBKeyRange.only(entity);
+        const request = index.openCursor(range);
+  
+        request.onsuccess = () => {
+          const cursor = request.result;
+  
+          if (cursor) {
+            // If a record with the same entity exists, replace it
+            const updateRequest = store.put(data); // Overwrite the existing record
+            updateRequest.onsuccess = () => {
+              console.log(`Updated existing entity: ${entity}`);
+              resolve();
+            };
+            updateRequest.onerror = () => reject(updateRequest.error);
+          } else {
+            // If no record with the same entity exists, save the new record
+            const saveRequest = store.put(data);
+            saveRequest.onsuccess = () => {
+              console.log(`Saved new unique entity: ${entity}`);
+              resolve();
+            };
+            saveRequest.onerror = () => reject(saveRequest.error);
+          }
+        };
+  
+        request.onerror = () => reject(request.error);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+  
+  
+  
 
   public async get<T>(storeName: string, id: string): Promise<T | null> {
     return new Promise((resolve, reject) => {

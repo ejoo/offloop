@@ -1,7 +1,3 @@
-/**
- * This file is responsible for managing the queue, and processing the queue items.
- */
-
 import { Storage } from '../interfaces/Storage';
 import { SyncQueueItem } from '../interfaces/SyncQueueItem';
 import { HttpClient, HttpResponse } from '../interfaces/HttpClient';
@@ -34,7 +30,6 @@ export class SyncQueueManager extends QueueManager {
     this.httpClient = httpClient;
     this.maxRetries = maxRetries;
     this.eventManager.on(EventTypes.DATA_SYNC, this.processQueue.bind(this));
-
   }
 
   async addToQueue(item: SyncQueueItem): Promise<void> {
@@ -47,20 +42,13 @@ export class SyncQueueManager extends QueueManager {
     }
 
     await this.storage.save('syncQueue', item);
-    this.eventManager.emit(EventTypes.ON_ADD_TO_QUEUE);
   }
 
   private async checkDuplicate(contentHash: string): Promise<boolean> {
-    if (this.storage.getByContentHash) {
-      const existingItems = await this.storage.getByContentHash(
-        'syncQueue',
-        contentHash
-      );
-      return !!existingItems;
-    }
-
-    const existingItems = await this.storage.getAll<SyncQueueItem>('syncQueue');
-    return existingItems.some((item) => item.contentHash === contentHash);
+    const existingItems = this.storage.getByContentHash
+      ? await this.storage.getByContentHash('syncQueue', contentHash)
+      : null;
+    return !!existingItems;
   }
 
   async processQueue(): Promise<void> {
@@ -73,29 +61,27 @@ export class SyncQueueManager extends QueueManager {
   
       const promises = queue.map(async (item) => {
         try {
-          await this.syncItem(item as SyncQueueItem);
+          await this.syncItem(item);
           await this.deleteFromQueue(item);
         } catch (error) {
           console.error(`Failed to process queue item ${item.id}:`, error);
-          if ((item as SyncQueueItem).retryCount >= this.maxRetries) {
+          if (item.retryCount >= this.maxRetries) {
             await this.deleteFromQueue(item);
           } else {
             await this.storage.update('syncQueue', {
               ...item,
-              retryCount: (item as SyncQueueItem).retryCount + 1,
+              retryCount: item.retryCount + 1,
               timestamp: Date.now(),
             });
           }
         }
       });
   
-      // Execute all promises and wait until all of them complete
       await Promise.allSettled(promises);
     } finally {
       this.processingQueue = false;
     }
   }
-  
 
   async getQueue(): Promise<SyncQueueItem[]> {
     return this.storage.getAll<SyncQueueItem>('syncQueue');
@@ -108,7 +94,7 @@ export class SyncQueueManager extends QueueManager {
 
   private async syncItem(item: SyncQueueItem): Promise<void> {
     const endpoint = `${this.apiBaseUrl}/${item.entity}`;
-    let response: HttpResponse;
+    let response: HttpResponse = { ok: false, status: 0, data: null };
 
     switch (item.operation) {
       case 'CREATE':
@@ -128,18 +114,14 @@ export class SyncQueueManager extends QueueManager {
         break;
 
       case 'GET':
-        response = await this.httpClient.get(endpoint);
+        response = await this.httpClient.get(`${endpoint}/${item.id}`);
         break;
-
-      default:
-        throw new Error(`Unknown operation: ${item.operation}`);
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`Failed to sync item ${item.id}`);
     }
   }
-
   async clearQueue(): Promise<boolean> {
     console.warn(
       'Clearing queue regardless of online status or processing status'

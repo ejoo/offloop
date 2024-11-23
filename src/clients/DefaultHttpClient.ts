@@ -14,6 +14,20 @@ export class DefaultHttpClient implements HttpClient {
   }
 
   async get<T>(url: string): Promise<HttpResponse<T>> {
-    return fetch(url, { method: 'GET' });
+    const response = await fetch(url);
+
+    let data: T | undefined;
+    try {
+      data = await response.json();
+    } catch (error) {
+      console.error("Error parsing JSON response:", error);
+      data = undefined;
+    }
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+    };
   }
 }

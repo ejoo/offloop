@@ -1,61 +1,62 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Offline Manager Test Environment</title>
     <style>
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .status {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 4px;
-        }
-        .online {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .offline {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        .control-panel {
-            margin: 20px 0;
-            padding: 20px;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-        }
-        .log-panel {
-            background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: 4px;
-            height: 300px;
-            overflow-y: auto;
-        }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .online {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .offline {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .control-panel {
+        margin: 20px 0;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+      }
+      .log-panel {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        height: 300px;
+        overflow-y: auto;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <h1>Offline Manager Test Environment</h1>
-        <div id="connectionStatus" class="status">Checking connection...</div>
-        
-        <div class="control-panel">
-            <h3>Test Controls</h3>
-            <button id="sendRequest">Send Test Request</button>
-            <button id="toggleConnection">Toggle Connection</button>
-            <button id="clearQueue">Clear Queue</button>
-        </div>
+      <h1>Offline Manager Test Environment</h1>
+      <div id="connectionStatus" class="status">Checking connection...</div>
 
-        <div>
-            <h3>Log Output</h3>
-            <div id="logOutput" class="log-panel"></div>
-        </div>
+      <div class="control-panel">
+        <h3>Test Controls</h3>
+        <button id="sendRequest">Send Test Request</button>
+        <button id="getRequest">Get Test Request</button>
+        <button id="toggleConnection">Toggle Connection</button>
+        <button id="clearQueue">Clear Queue</button>
+      </div>
+
+      <div>
+        <h3>Log Output</h3>
+        <div id="logOutput" class="log-panel"></div>
+      </div>
     </div>
 
     <script type="module" src="./main.js"></script>
-</body>
-</html> 
+  </body>
+</html>
