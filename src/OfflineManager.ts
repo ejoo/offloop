@@ -18,7 +18,7 @@ export class OfflineManager {
   private readonly queueManager: SyncQueueManager;
   private onlineChecker: OnlineCheckerConfig;
   private networkMonitor: NetworkMonitor;
-  private eventEmitter = new EventManager();
+  private eventEmitter;
   private criticalEntities: string[] = [];
 
   constructor(config: OfflineManagerConfig) {
@@ -32,6 +32,7 @@ export class OfflineManager {
     this.storage = config.storage || new IndexDbStorage(this.dbName);
     this.networkMonitor = config.networkMonitor || new DefaultNetworkMonitor();
     this.onlineChecker = config.onlineChecker || { check: () => true };
+    this.eventEmitter = new EventManager();
 
     this._isOnline = this.onlineChecker.check();
 
@@ -44,6 +45,8 @@ export class OfflineManager {
 
     this.init();
   }
+
+
 
   get queueManagerInstance(): SyncQueueManager {
     return this.queueManager;
@@ -193,7 +196,7 @@ export class OfflineManager {
     }
   }
 
-  public async putEntity<T>(entity: string, id: string, data: T): Promise<T> {
+  public async putEntity<T>(entity: string, id: string | number, data: T): Promise<T> {
     if (this._isOnline) {
       const endpoint = `${this.apiBaseUrl}/${entity}/${id}`;
       try {

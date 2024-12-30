@@ -20,6 +20,7 @@ export class EventManager {
   }
 
   public emit(eventType: string, ...args: unknown[]): void {
+    console.log(eventType, args , 'emitting event');
     this.eventEmitter.emit(eventType, ...args);
   }
 

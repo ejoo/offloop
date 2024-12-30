@@ -26,9 +26,9 @@ class TestEnvironment {
     });
 
     
+    this.isOnline = true;
     this.setupEventListeners();
     this.updateConnectionStatus();
-    this.isOnline = true;
   }
 
   setupEventListeners() {
@@ -66,7 +66,7 @@ class TestEnvironment {
     try {
       this.log('Sending test request...');
       // debugger;
-      const response = await this.offlineManager.postEntity('posts', {
+      const response = await this.offlineManager.postEntity('todos', {
         title: 'Test Post',
         body: 'This is a test post',
       });
@@ -90,6 +90,11 @@ class TestEnvironment {
   toggleConnection() {
     this.isOnline = !this.isOnline;
     this.offlineManager.isOnline = this.isOnline;
+    if(this.isOnline) {
+      this.offlineManager.eventEmitter.emit('platform-online')
+    } else {
+      this.offlineManager.eventEmitter.emit('platform-offline')
+    }
     this.updateConnectionStatus();
     this.log(`Connection ${this.isOnline ? 'restored' : 'disabled'}`);
   }

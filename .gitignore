@@ -19,3 +19,24 @@ yarn-error.log*
 
 # OS
 .DS_Store 
+
+# Dependencies
+doc/node_modules
+
+# Production
+doc/build
+
+# Generated files
+doc/.docusaurus
+doc/.cache-loader
+
+# Misc
+doc/.DS_Store
+doc/.env.local
+doc/.env.development.local
+doc/.env.test.local
+doc/.env.production.local
+
+doc/npm-debug.log*
+doc/yarn-debug.log*
+doc/yarn-error.log*

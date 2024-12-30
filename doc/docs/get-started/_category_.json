@@ -1,0 +1,8 @@
+{
+  "label": "Get started",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "The Offloop Library is a powerful tool designed to simplify offline data access and processing in React and React Native applications."
+  }
+}
