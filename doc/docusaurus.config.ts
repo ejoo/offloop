@@ -103,7 +103,7 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     customCss: require.resolve('./src/css/custom.css'),
-    primaryColor: '#4DA1A9', // Add this line
+    primaryColor: '#4DA1A9',
   } satisfies Preset.ThemeConfig,
 };
 
