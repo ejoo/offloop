@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkoffloop_doc=self.webpackChunkoffloop_doc||[]).push([[1903],{1912:o=>{o.exports=JSON.parse('{"blogBasePath":"/offloop/blog","blogTitle":"Blog","authorsListPath":"/offloop/blog/authors"}')}}]);
