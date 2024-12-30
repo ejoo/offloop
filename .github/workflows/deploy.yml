@@ -26,6 +26,11 @@ jobs:
         run: npm run build
         working-directory: ./doc
 
+      - name: Set git user
+        run: |
+          git config --global user.name alihussain575
+          git config --global user.email alihussainirfan575@gmail.com
+
       - name: Deploy to GitHub Pages
         run: npm run deploy
         working-directory: ./doc
