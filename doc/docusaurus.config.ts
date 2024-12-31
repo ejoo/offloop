@@ -16,6 +16,7 @@ const config: Config = {
   baseUrl: '/offloop/',
   organizationName : 'ejoo',
   trailingSlash: false,
+  deploymentBranch: 'gh-pages',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
