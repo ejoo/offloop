@@ -20,7 +20,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm run install --frozen-lockfile
+        run: npm install --frozen-lockfile
         working-directory: ./doc # Set working directory to 'doc'
 
       - name: Build website
